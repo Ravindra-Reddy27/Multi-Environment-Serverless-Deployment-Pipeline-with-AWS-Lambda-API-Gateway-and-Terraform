@@ -1,0 +1,77 @@
+name: Serverless Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - feature/*
+  workflow_dispatch: # Allows manual trigger
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  # ---------------------------------------------------------
+  # DEV ENVIRONMENT DEPLOYMENT
+  # ---------------------------------------------------------
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        run: terraform -chdir=./terraform/environments/dev init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+      - name: Terraform Plan
+        run: terraform -chdir=./terraform/environments/dev plan -out=tfplan -var="environment_name=dev" -var="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/')
+        run: terraform -chdir=./terraform/environments/dev apply -auto-approve tfplan
+
+  # ---------------------------------------------------------
+  # STAGING ENVIRONMENT DEPLOYMENT (Requires Manual Approval)
+  # ---------------------------------------------------------
+  deploy-staging:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: staging # This links to the GitHub Environment protection rules
+    if: github.ref == 'refs/heads/main' # Only deploy to staging from main
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        run: terraform -chdir=./terraform/environments/staging init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+      - name: Terraform Plan
+        run: terraform -chdir=./terraform/environments/staging plan -out=tfplan -var="environment_name=staging" -var="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Apply
+        run: terraform -chdir=./terraform/environments/staging apply -auto-approve tfplan
