@@ -19,7 +19,7 @@ terraform {
 provider "aws" {
   region = var.region
 
-  # Mandatory AWS Resource Tagging across all dev resources
+  # Mandatory AWS Resource Tagging across all staging resources
   default_tags {
     tags = {
       Environment = var.environment_name
@@ -49,12 +49,12 @@ module "api_gateway" {
 }
 
 # 3. Security: API Key and Usage Plan Definition
-resource "aws_api_gateway_api_key" "dev_key" {
-  name = "hello-api-dev-key"
+resource "aws_api_gateway_api_key" "stage_key" {
+  name = "hello-api-staging-key"
 }
 
-resource "aws_api_gateway_usage_plan" "dev_usage_plan" {
-  name = "hello-api-dev-usage-plan"
+resource "aws_api_gateway_usage_plan" "stage_usage_plan" {
+  name = "hello-api-staging-usage-plan"
 
   api_stages {
     api_id = module.api_gateway.api_id
@@ -62,20 +62,20 @@ resource "aws_api_gateway_usage_plan" "dev_usage_plan" {
   }
 }
 
-resource "aws_api_gateway_usage_plan_key" "dev_key_assignment" {
-  key_id        = aws_api_gateway_api_key.dev_key.id
+resource "aws_api_gateway_usage_plan_key" "stage_key_assignment" {
+  key_id        = aws_api_gateway_api_key.stage_key.id
   key_type      = "API_KEY"
-  usage_plan_id = aws_api_gateway_usage_plan.dev_usage_plan.id
+  usage_plan_id = aws_api_gateway_usage_plan.stage_usage_plan.id
 }
 
 # Outputs for Verification
 output "api_endpoint" {
   value       = module.api_gateway.invoke_url
-  description = "Dev API Gateway invocation endpoint URL"
+  description = "Stage API Gateway invocation endpoint URL"
 }
 
 output "api_key_value" {
-  value       = aws_api_gateway_api_key.dev_key.value
+  value       = aws_api_gateway_api_key.stage_key.value
   sensitive   = true
   description = "API Key value for securing request calls"
 }

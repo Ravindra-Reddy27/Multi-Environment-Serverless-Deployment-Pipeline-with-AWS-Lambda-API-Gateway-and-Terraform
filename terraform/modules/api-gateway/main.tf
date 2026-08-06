@@ -54,10 +54,12 @@ resource "aws_api_gateway_stage" "this" {
 }
 
 # Grant API Gateway permission to execute the Lambda function
+# Grant API Gateway permission to execute the Lambda function
 resource "aws_lambda_permission" "apigw" {
   statement_id  = "AllowAPIGatewayInvoke-${var.environment}"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
+  qualifier     = var.lambda_qualifier # <--- Add this line!
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
 }
