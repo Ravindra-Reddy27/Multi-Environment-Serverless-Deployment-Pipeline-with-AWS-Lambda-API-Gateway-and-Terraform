@@ -56,3 +56,25 @@ resource "aws_cloudwatch_log_group" "lambda_log" {
     Environment = var.environment
   }
 }
+
+# CloudWatch Metric Alarm for Lambda Errors
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name          = "${var.function_name}-${var.environment}-error-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300 # 5 minutes (in seconds)
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Triggers if ${var.function_name}-${var.environment} has > 0 errors in 5 minutes"
+
+  # Link the alarm strictly to this specific Lambda function
+  dimensions = {
+    FunctionName = aws_lambda_function.this.function_name
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+}
